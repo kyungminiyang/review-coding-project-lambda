@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -62,6 +63,14 @@ func (r *S3Repository) EnsureBucketExists(ctx context.Context) error {
 	})
 
 	if err != nil {
+		// Check if error is BucketAlreadyOwnedByYou or BucketAlreadyExists
+		// In this case, the bucket exists and we can use it
+		var bae *types.BucketAlreadyExists
+		var baoy *types.BucketAlreadyOwnedByYou
+		if errors.As(err, &bae) || errors.As(err, &baoy) {
+			// Bucket already exists, this is fine
+			return nil
+		}
 		return fmt.Errorf("failed to create bucket: %w", err)
 	}
 
