@@ -28,13 +28,22 @@ var s3Repo *repository.S3Repository
 func init() {
 	ctx := context.Background()
 
-	// Load AWS configuration
-	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(defaultRegion))
+	// Get region from environment variable or use default
+	region := os.Getenv("AWS_REGION")
+	if region == "" {
+		region = os.Getenv("S3_REGION")
+	}
+	if region == "" {
+		region = defaultRegion
+	}
+
+	// Load AWS configuration with explicit region
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
 	if err != nil {
 		panic(fmt.Sprintf("unable to load SDK config: %v", err))
 	}
 
-	// Initialize S3 client
+	// Initialize S3 client with explicit region
 	s3Client := s3.NewFromConfig(cfg)
 
 	// Get bucket name from environment variable or use default
@@ -43,8 +52,10 @@ func init() {
 		bucketName = defaultBucketName
 	}
 
+	log.Printf("Initializing S3 repository: bucket=%s, region=%s", bucketName, region)
+
 	// Create repository layer
-	s3Repo = repository.NewS3Repository(s3Client, bucketName, defaultRegion)
+	s3Repo = repository.NewS3Repository(s3Client, bucketName, region)
 }
 
 // UploadRequest represents the file upload request structure
