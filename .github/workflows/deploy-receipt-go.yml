@@ -1,0 +1,60 @@
+name: Deploy receipt-go
+
+on:
+  push:
+    branches: 
+      - master
+    paths:
+      - 'functions/receipt-go/**'
+      - 'shared/**'
+      - '.github/workflows/deploy-receipt-go.yml'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # Required for OIDC authentication
+      contents: read  # Required to check out the repository
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      
+      - name: Install dependencies
+        working-directory: ./functions/receipt-go
+        run: go mod download
+      
+      - name: Run tests
+        working-directory: ./functions/receipt-go
+        run: go test -v ./...
+      
+      - name: Build receipt-go
+        run: |
+          mkdir -p dist/receipt-go
+          cd functions/receipt-go
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o ../../dist/receipt-go/bootstrap .
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      
+      - name: Package Lambda function
+        run: |
+          cd dist/receipt-go
+          zip function.zip bootstrap
+      
+      - name: Deploy receipt-go to Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name ${{ secrets.LAMBDA_FUNCTION_PREFIX }}receipt-go \
+            --zip-file fileb://dist/receipt-go/function.zip \
+            --region ${{ secrets.AWS_REGION }}
+
