@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	defaultBucketName = "review-receipt-uploads"
+	defaultBucketName = "lambda-file-uploads"
 	defaultRegion     = "ap-northeast-1"
 	defaultSheetName  = "가계부" // Default sheet name for household ledger
 )
