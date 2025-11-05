@@ -48,4 +48,7 @@ jobs:
           runtime: provided.al2023
           handler: bootstrap
           role: ${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }}
+          environment-variables: |
+            S3_BUCKET_NAME=review-receipt-uploads
+            S3_REGION=ap-northeast-1
 
