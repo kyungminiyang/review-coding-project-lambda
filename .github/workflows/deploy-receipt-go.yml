@@ -27,12 +27,10 @@ jobs:
           go-version: '1.21'
       
       - name: Install dependencies
-        working-directory: ./functions/receipt-go
         run: go mod download
       
       - name: Run tests
-        working-directory: ./functions/receipt-go
-        run: go test -v ./...
+        run: go test -v ./functions/receipt-go/...
       
       - name: Build receipt-go
         run: |
@@ -51,10 +49,60 @@ jobs:
           cd dist/receipt-go
           zip function.zip bootstrap
       
-      - name: Deploy receipt-go to Lambda
+      - name: Check if Lambda function exists
+        id: check_function
+        run: |
+          if aws lambda get-function --function-name ${{ secrets.LAMBDA_FUNCTION_PREFIX }}receipt-go --region ${{ secrets.AWS_REGION }} 2>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Create Lambda function (if not exists)
+        if: steps.check_function.outputs.exists == 'false'
+        run: |
+          aws lambda create-function \
+            --function-name ${{ secrets.LAMBDA_FUNCTION_PREFIX }}receipt-go \
+            --runtime provided.al2023 \
+            --role ${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }} \
+            --handler bootstrap \
+            --zip-file fileb://dist/receipt-go/function.zip \
+            --region ${{ secrets.AWS_REGION }} \
+            --timeout 30 \
+            --memory-size 256 \
+            --description "Receipt file upload API - reads and returns file size"
+      
+      - name: Update Lambda function code (if exists)
+        if: steps.check_function.outputs.exists == 'true'
         run: |
           aws lambda update-function-code \
             --function-name ${{ secrets.LAMBDA_FUNCTION_PREFIX }}receipt-go \
             --zip-file fileb://dist/receipt-go/function.zip \
             --region ${{ secrets.AWS_REGION }}
+      
+      - name: Create Function URL (if not exists)
+        if: steps.check_function.outputs.exists == 'false'
+        run: |
+          aws lambda create-function-url-config \
+            --function-name ${{ secrets.LAMBDA_FUNCTION_PREFIX }}receipt-go \
+            --auth-type NONE \
+            --region ${{ secrets.AWS_REGION }}
+          
+          # Add permission for Function URL
+          aws lambda add-permission \
+            --function-name ${{ secrets.LAMBDA_FUNCTION_PREFIX }}receipt-go \
+            --statement-id FunctionURLAllowPublicAccess \
+            --action lambda:InvokeFunctionUrl \
+            --principal "*" \
+            --function-url-auth-type NONE \
+            --region ${{ secrets.AWS_REGION }}
+      
+      - name: Get Function URL
+        run: |
+          URL=$(aws lambda get-function-url-config \
+            --function-name ${{ secrets.LAMBDA_FUNCTION_PREFIX }}receipt-go \
+            --region ${{ secrets.AWS_REGION }} \
+            --query 'FunctionUrl' \
+            --output text)
+          echo "🚀 Receipt-Go Function URL: $URL"
 
