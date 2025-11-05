@@ -24,14 +24,14 @@ func TestHandler(t *testing.T) {
 						Method: "POST",
 					},
 				},
-				Body:             "Hello, this is test file content!",
-				IsBase64Encoded:  false,
+				Body:            "Hello, this is test file content!",
+				IsBase64Encoded: false,
 				QueryStringParameters: map[string]string{
 					"fileName": "test.txt",
 				},
 			},
 			expectedStatus: 200,
-			expectedSize:   34,
+			expectedSize:   33,
 		},
 		{
 			name: "Valid POST request with base64 encoded file",
@@ -138,4 +138,3 @@ func TestHandler(t *testing.T) {
 		})
 	}
 }
-
