@@ -55,12 +55,19 @@ func (r *S3Repository) EnsureBucketExists(ctx context.Context) error {
 	}
 
 	// Create bucket
-	_, err = r.client.CreateBucket(ctx, &s3.CreateBucketInput{
+	createBucketInput := &s3.CreateBucketInput{
 		Bucket: aws.String(r.bucketName),
-		CreateBucketConfiguration: &types.CreateBucketConfiguration{
+	}
+
+	// Only set LocationConstraint if not us-east-1
+	// us-east-1 is the default region and should not have LocationConstraint set
+	if r.region != "" && r.region != "us-east-1" {
+		createBucketInput.CreateBucketConfiguration = &types.CreateBucketConfiguration{
 			LocationConstraint: types.BucketLocationConstraint(r.region),
-		},
-	})
+		}
+	}
+
+	_, err = r.client.CreateBucket(ctx, createBucketInput)
 
 	if err != nil {
 		// Check if error is BucketAlreadyOwnedByYou or BucketAlreadyExists
