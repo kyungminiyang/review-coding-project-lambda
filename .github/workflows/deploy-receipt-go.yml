@@ -51,11 +51,17 @@ jobs:
       
       - name: Check if Lambda function exists
         id: check_function
+        continue-on-error: true
         run: |
-          if aws lambda get-function --function-name ${{ secrets.LAMBDA_FUNCTION_PREFIX }}receipt-go --region ${{ secrets.AWS_REGION }} 2>/dev/null; then
+          aws lambda get-function \
+            --function-name ${{ secrets.LAMBDA_FUNCTION_PREFIX }}receipt-go \
+            --region ${{ secrets.AWS_REGION }} > /dev/null 2>&1
+          if [ $? -eq 0 ]; then
             echo "exists=true" >> $GITHUB_OUTPUT
+            echo "✅ Function exists - will update code"
           else
             echo "exists=false" >> $GITHUB_OUTPUT
+            echo "📦 Function does not exist - will create new function"
           fi
       
       - name: Create Lambda function (if not exists)
